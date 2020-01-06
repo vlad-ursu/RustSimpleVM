@@ -65,6 +65,26 @@ impl VM<'_> {
                     self.stack.pop();
                     self.ip += 1;
                 },
+                Some(OP::CMP) => {
+                    match self.stack.pop() {
+                        Some(tos) => {
+                            match self.stack.pop() {
+                                Some(tos1) => {
+                                    if tos1 < tos {
+                                        self.stack.push(-1);
+                                    } else if tos1 == tos {
+                                        self.stack.push(0);
+                                    } else {
+                                        self.stack.push(1);
+                                    }
+                                },
+                                None => panic!("Error on CMP. Stack is empty")
+                            }
+                        },
+                        None => panic!("Error on CMP. Stack is empty")
+                    }
+                    self.ip += 1;
+                },
                 Some(OP::PRNT) => {
                     let value = self.stack.pop();
                     match value {
