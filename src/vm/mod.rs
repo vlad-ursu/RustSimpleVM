@@ -236,6 +236,13 @@ impl VM<'_> {
                     }
                     self.ip += 1;
                 },
+                Some(OP::NEG) => {
+                    match self.stack.last_mut() {
+                        Some(tos) => *tos = -*tos,
+                        None => panic!("Error on JE. Stack is empty")
+                    }
+                    self.ip += 1;
+                },
                 Some(OP::PRNT) => {
                     let value = self.stack.pop();
                     match value {
