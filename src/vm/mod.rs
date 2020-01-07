@@ -275,6 +275,20 @@ impl VM<'_> {
                         Err(e) => panic!(e)
                     }
                 },
+                Some(OP::INC) => {
+                    match self.stack.last_mut() {
+                        Some(tos) => *tos += 1,
+                        None => panic!("Error on INC. Stack is empty")
+                    }
+                    self.ip += 1;
+                },
+                Some(OP::DEC) => {
+                    match self.stack.last_mut() {
+                        Some(tos) => *tos -= 1,
+                        None => panic!("Error on DEC. Stack is empty")
+                    }
+                    self.ip += 1;
+                },
                 Some(OP::PRNT) => {
                     let value = self.stack.pop();
                     match value {
