@@ -141,6 +141,94 @@ impl VM<'_> {
                         None => panic!("Error on JE. Stack is empty")
                     }
                 },
+                Some(OP::JL) => {
+                    match self.stack.last() {
+                        Some(tos) => {
+                            if *tos == -1 {
+                                self.ip += 1;
+                                let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
+                                // self.ip += 8;
+
+                                match i64_bytes {
+                                    Ok(addr) => {
+                                        let addr = i64::from_le_bytes(*addr) as usize;
+                                        self.ip = addr;
+                                    },
+                                    Err(e) => panic!(e)
+                                }
+                            } else {
+                                self.ip += 1;
+                            }
+                        },
+                        None => panic!("Error on JE. Stack is empty")
+                    }
+                },
+                Some(OP::JLE) => {
+                    match self.stack.last() {
+                        Some(tos) => {
+                            if *tos == -1 || *tos == 0 {
+                                self.ip += 1;
+                                let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
+                                // self.ip += 8;
+
+                                match i64_bytes {
+                                    Ok(addr) => {
+                                        let addr = i64::from_le_bytes(*addr) as usize;
+                                        self.ip = addr;
+                                    },
+                                    Err(e) => panic!(e)
+                                }
+                            } else {
+                                self.ip += 1;
+                            }
+                        },
+                        None => panic!("Error on JE. Stack is empty")
+                    }
+                },
+                Some(OP::JG) => {
+                    match self.stack.last() {
+                        Some(tos) => {
+                            if *tos == 1 {
+                                self.ip += 1;
+                                let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
+                                // self.ip += 8;
+
+                                match i64_bytes {
+                                    Ok(addr) => {
+                                        let addr = i64::from_le_bytes(*addr) as usize;
+                                        self.ip = addr;
+                                    },
+                                    Err(e) => panic!(e)
+                                }
+                            } else {
+                                self.ip += 1;
+                            }
+                        },
+                        None => panic!("Error on JE. Stack is empty")
+                    }
+                },
+                Some(OP::JGE) => {
+                    match self.stack.last() {
+                        Some(tos) => {
+                            if *tos == 0 || *tos == 1 {
+                                self.ip += 1;
+                                let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
+                                // self.ip += 8;
+
+                                match i64_bytes {
+                                    Ok(addr) => {
+                                        let addr = i64::from_le_bytes(*addr) as usize;
+                                        self.ip = addr;
+                                    },
+                                    Err(e) => panic!(e)
+                                }
+                            } else {
+                                self.ip += 1;
+                            }
+                        },
+                        None => panic!("Error on JE. Stack is empty")
+                    }
+                },
                 Some(OP::PRNT) => {
                     let value = self.stack.pop();
                     match value {
