@@ -243,6 +243,38 @@ impl VM<'_> {
                     }
                     self.ip += 1;
                 },
+                Some(OP::SHL) => {
+                    self.ip += 1;
+                    let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
+                    self.ip += 8;
+
+                    match i64_bytes {
+                        Ok(delta) => {
+                            let delta = i64::from_le_bytes(*delta) as usize;
+                            match self.stack.last_mut() {
+                                Some(tos) => *tos = *tos << delta,
+                                None => panic!("Error on SHL. Stack is empty")
+                            }
+                        },
+                        Err(e) => panic!(e)
+                    }
+                },
+                Some(OP::SHR) => {
+                    self.ip += 1;
+                    let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
+                    self.ip += 8;
+
+                    match i64_bytes {
+                        Ok(delta) => {
+                            let delta = i64::from_le_bytes(*delta) as usize;
+                            match self.stack.last_mut() {
+                                Some(tos) => *tos = *tos >> delta,
+                                None => panic!("Error on SHL. Stack is empty")
+                            }
+                        },
+                        Err(e) => panic!(e)
+                    }
+                },
                 Some(OP::PRNT) => {
                     let value = self.stack.pop();
                     match value {
