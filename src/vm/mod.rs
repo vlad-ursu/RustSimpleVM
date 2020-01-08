@@ -36,6 +36,7 @@ impl VM<'_> {
     pub fn run(&mut self) {
         while self.ip < self.bytecode.len() {
             let op = self.bytecode[self.ip];
+            println!("{}", op);
             match OP::from_u8(op) {
                 Some(OP::NOP) => self.ip += 1,
                 Some(OP::PUSH) => {
@@ -287,6 +288,54 @@ impl VM<'_> {
                         Some(tos) => *tos -= 1,
                         None => panic!("Error on DEC. Stack is empty")
                     }
+                    self.ip += 1;
+                },
+                Some(OP::AND) => {
+                    let tos = self.stack.pop();
+
+                    match tos {
+                        Some(tos) => {
+                            let tos1 = self.stack.pop();
+                            match tos1 {
+                                Some(tos1) => self.stack.push(tos & tos1),
+                                None => panic!("Error on AND. Stack is empty")
+                            }
+                        },
+                        None => panic!("Error on AND. Stack is empty")
+                    }
+
+                    self.ip += 1;
+                },
+                Some(OP::OR) => {
+                    let tos = self.stack.pop();
+
+                    match tos {
+                        Some(tos) => {
+                            let tos1 = self.stack.pop();
+                            match tos1 {
+                                Some(tos1) => self.stack.push(tos | tos1),
+                                None => panic!("Error on OR. Stack is empty")
+                            }
+                        },
+                        None => panic!("Error on OR. Stack is empty")
+                    }
+
+                    self.ip += 1;
+                },
+                Some(OP::XOR) => {
+                    let tos = self.stack.pop();
+
+                    match tos {
+                        Some(tos) => {
+                            let tos1 = self.stack.pop();
+                            match tos1 {
+                                Some(tos1) => self.stack.push(tos ^ tos1),
+                                None => panic!("Error on XOR. Stack is empty")
+                            }
+                        },
+                        None => panic!("Error on XOR. Stack is empty")
+                    }
+
                     self.ip += 1;
                 },
                 Some(OP::PRNT) => {
