@@ -36,7 +36,6 @@ impl VM<'_> {
     pub fn run(&mut self) {
         while self.ip < self.bytecode.len() {
             let op = self.bytecode[self.ip];
-            println!("{}", op);
             match OP::from_u8(op) {
                 Some(OP::NOP) => self.ip += 1,
                 Some(OP::PUSH) => {
@@ -334,6 +333,92 @@ impl VM<'_> {
                             }
                         },
                         None => panic!("Error on XOR. Stack is empty")
+                    }
+
+                    self.ip += 1;
+                },
+                Some(OP::ADD) => {
+                    let tos = self.stack.pop();
+
+                    match tos {
+                        Some(tos) => {
+                            let tos1 = self.stack.pop();
+                            match tos1 {
+                                Some(tos1) => self.stack.push(tos + tos1),
+                                None => panic!("Error on ADD. Stack is empty")
+                            }
+                        },
+                        None => panic!("Error on ADD. Stack is empty")
+                    }
+
+                    self.ip += 1;
+                },
+                Some(OP::SUB) => {
+                    let tos = self.stack.pop();
+
+                    match tos {
+                        Some(tos) => {
+                            let tos1 = self.stack.pop();
+                            match tos1 {
+                                Some(tos1) => self.stack.push(tos1 - tos),
+                                None => panic!("Error on ADD. Stack is empty")
+                            }
+                        },
+                        None => panic!("Error on ADD. Stack is empty")
+                    }
+
+                    self.ip += 1;
+                },
+                Some(OP::MUL) => {
+                    let tos = self.stack.pop();
+
+                    match tos {
+                        Some(tos) => {
+                            let tos1 = self.stack.pop();
+                            match tos1 {
+                                Some(tos1) => self.stack.push(tos1 * tos),
+                                None => panic!("Error on ADD. Stack is empty")
+                            }
+                        },
+                        None => panic!("Error on ADD. Stack is empty")
+                    }
+
+                    self.ip += 1;
+                },
+                Some(OP::DIV) => {
+                    let tos = self.stack.pop();
+
+                    match tos {
+                        Some(tos) => {
+                            if tos == 0 {
+                                panic!("Error on DIV. Cannot divide by 0")
+                            }
+                            let tos1 = self.stack.pop();
+                            match tos1 {
+                                Some(tos1) => self.stack.push(tos1 / tos),
+                                None => panic!("Error on ADD. Stack is empty")
+                            }
+                        },
+                        None => panic!("Error on ADD. Stack is empty")
+                    }
+
+                    self.ip += 1;
+                },
+                Some(OP::MOD) => {
+                    let tos = self.stack.pop();
+
+                    match tos {
+                        Some(tos) => {
+                            if tos == 0 {
+                                panic!("Error on DIV. Cannot divide by 0")
+                            }
+                            let tos1 = self.stack.pop();
+                            match tos1 {
+                                Some(tos1) => self.stack.push(tos1 % tos),
+                                None => panic!("Error on ADD. Stack is empty")
+                            }
+                        },
+                        None => panic!("Error on ADD. Stack is empty")
                     }
 
                     self.ip += 1;

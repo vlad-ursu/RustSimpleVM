@@ -27,6 +27,7 @@ pub enum OP {
     SUB,    // POP(v1); POP(v2); PUSH(v1 - v2);
     MUL,    // POP(v1); POP(v2); PUSH(v1 * v2);
     DIV,    // POP(v1); POP(v2); PUSH(v1 / v2);
+    MOD,    // POP(v1); POP(v2); PUSH(v1 % v2);
     PRNT    // Print topmost value on stack
 }
 
@@ -60,7 +61,8 @@ impl OP {
             24 => Some(OP::SUB),
             25 => Some(OP::MUL),
             26 => Some(OP::DIV),
-            27 => Some(OP::PRNT),
+            27 => Some(OP::MOD),
+            28 => Some(OP::PRNT),
             _ => None
         }
     }
