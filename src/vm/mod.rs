@@ -25,6 +25,71 @@ pub struct VM<'a> {
 }
 
 impl VM<'_> {
+    fn unary_op_with_arg<U>(&mut self, condition: U) where U: Fn(i64) -> bool {
+        match self.stack.last() {
+            Some(tos) => {
+                if condition(*tos) {
+                    self.ip += 1;
+                    let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
+                    // self.ip += 8;
+
+                    match i64_bytes {
+                        Ok(addr) => {
+                            let addr = i64::from_le_bytes(*addr) as usize;
+                            self.ip = addr;
+                        },
+                        Err(e) => panic!(e)
+                    }
+                } else {
+                    self.ip += 1;
+                }
+            },
+            None => panic!("Empty stack.")
+        }
+    }
+
+    fn unary_op_inplace<UI>(&mut self, operation: UI) where UI: Fn(&mut i64) {
+        match self.stack.last_mut() {
+            Some(tos) => operation(tos),
+            None => panic!("Empty stack.")
+        }
+        self.ip += 1;
+    }
+
+    fn unary_op_with_arg_inplace<UAI>(&mut self, operation: UAI) where UAI: Fn(&mut i64, usize) {
+        self.ip += 1;
+        let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
+        self.ip += 8;
+
+        match i64_bytes {
+            Ok(delta) => {
+                let delta = i64::from_le_bytes(*delta) as usize;
+                match self.stack.last_mut() {
+                    Some(tos) => operation(tos, delta),
+                    None => panic!("Empty stack.")
+                }
+            },
+            Err(e) => panic!(e)
+        }
+    }
+
+    fn binary_op<B>(&mut self, operation: B) where B: Fn(i64, i64) -> i64 {
+        let tos = self.stack.pop();
+        
+        match tos {
+            Some(tos) => {
+                let tos1 = self.stack.pop();
+                match tos1 {
+                    Some(tos1) => self.stack.push(operation(tos, tos1)),
+                    None => panic!("Empty stack.")
+                }
+            },
+            None => panic!("Empty stack.")
+        }
+
+        self.ip += 1;
+    } 
+
     pub fn new(code: &[u8]) -> VM {
         VM {
             bytecode: code,
@@ -36,6 +101,7 @@ impl VM<'_> {
     pub fn run(&mut self) {
         while self.ip < self.bytecode.len() {
             let op = self.bytecode[self.ip];
+            // println!("{}", op);
             match OP::from_u8(op) {
                 Some(OP::NOP) => self.ip += 1,
                 Some(OP::PUSH) => {
@@ -97,332 +163,38 @@ impl VM<'_> {
                         Err(e) => panic!(e)
                     }
                 },
-                Some(OP::JE) => {
-                    match self.stack.last() {
-                        Some(tos) => {
-                            if *tos == 0 {
-                                self.ip += 1;
-                                let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
-                                // self.ip += 8;
-
-                                match i64_bytes {
-                                    Ok(addr) => {
-                                        let addr = i64::from_le_bytes(*addr) as usize;
-                                        self.ip = addr;
-                                    },
-                                    Err(e) => panic!(e)
-                                }
-                            } else {
-                                self.ip += 1;
-                            }
-                        },
-                        None => panic!("Error on JE. Stack is empty")
+                Some(OP::JE) => self.unary_op_with_arg( |x: i64| { x == 0 } ),
+                Some(OP::JNE) => self.unary_op_with_arg( |x: i64| { x != 0 } ),
+                Some(OP::JL) => self.unary_op_with_arg( |x: i64| { x == -1 } ),
+                Some(OP::JLE) => self.unary_op_with_arg( |x: i64| { x == -1 || x == 0 } ),
+                Some(OP::JG) => self.unary_op_with_arg( |x: i64| { x == 1 } ),
+                Some(OP::JGE) => self.unary_op_with_arg( |x: i64| { x == 0 || x == 1 } ),
+                Some(OP::NOT) => self.unary_op_inplace( |x: &mut i64| { *x = !*x } ),
+                Some(OP::NEG) => self.unary_op_inplace( |x: &mut i64| { *x = -*x } ),
+                Some(OP::SHL) => self.unary_op_with_arg_inplace( |x: &mut i64, y: usize| { *x = *x << y } ),
+                Some(OP::SHR) => self.unary_op_with_arg_inplace( |x: &mut i64, y: usize| { *x = *x >> y } ),
+                Some(OP::INC) => self.unary_op_inplace( |x: &mut i64| { *x += 1 } ),
+                Some(OP::DEC) => self.unary_op_inplace( |x: &mut i64| { *x -= 1 } ),
+                Some(OP::AND) => self.binary_op( |x, y: i64| { x & y } ),
+                Some(OP::OR) => self.binary_op( |x, y: i64| { x | y } ),
+                Some(OP::XOR) => self.binary_op( |x, y: i64| { x ^ y } ),
+                Some(OP::ADD) => self.binary_op( |x, y: i64| { x + y } ),
+                Some(OP::SUB) => self.binary_op( |x, y: i64| { y - x } ),
+                Some(OP::MUL) => self.binary_op( |x, y: i64| { x * y } ),
+                Some(OP::DIV) => self.binary_op( |x, y: i64| { 
+                    if x == 0 {
+                        panic!("Division by 0.");
+                    } else {
+                        y / x
                     }
-                },
-                Some(OP::JNE) => {
-                    match self.stack.last() {
-                        Some(tos) => {
-                            if *tos != 0 {
-                                self.ip += 1;
-                                let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
-                                // self.ip += 8;
-
-                                match i64_bytes {
-                                    Ok(addr) => {
-                                        let addr = i64::from_le_bytes(*addr) as usize;
-                                        self.ip = addr;
-                                    },
-                                    Err(e) => panic!(e)
-                                }
-                            } else {
-                                self.ip += 1;
-                            }
-                        },
-                        None => panic!("Error on JE. Stack is empty")
+                } ),
+                Some(OP::MOD) => self.binary_op( |x, y: i64| { 
+                    if x == 0 {
+                        panic!("Division by 0.");
+                    } else {
+                        y % x
                     }
-                },
-                Some(OP::JL) => {
-                    match self.stack.last() {
-                        Some(tos) => {
-                            if *tos == -1 {
-                                self.ip += 1;
-                                let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
-                                // self.ip += 8;
-
-                                match i64_bytes {
-                                    Ok(addr) => {
-                                        let addr = i64::from_le_bytes(*addr) as usize;
-                                        self.ip = addr;
-                                    },
-                                    Err(e) => panic!(e)
-                                }
-                            } else {
-                                self.ip += 1;
-                            }
-                        },
-                        None => panic!("Error on JE. Stack is empty")
-                    }
-                },
-                Some(OP::JLE) => {
-                    match self.stack.last() {
-                        Some(tos) => {
-                            if *tos == -1 || *tos == 0 {
-                                self.ip += 1;
-                                let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
-                                // self.ip += 8;
-
-                                match i64_bytes {
-                                    Ok(addr) => {
-                                        let addr = i64::from_le_bytes(*addr) as usize;
-                                        self.ip = addr;
-                                    },
-                                    Err(e) => panic!(e)
-                                }
-                            } else {
-                                self.ip += 1;
-                            }
-                        },
-                        None => panic!("Error on JE. Stack is empty")
-                    }
-                },
-                Some(OP::JG) => {
-                    match self.stack.last() {
-                        Some(tos) => {
-                            if *tos == 1 {
-                                self.ip += 1;
-                                let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
-                                // self.ip += 8;
-
-                                match i64_bytes {
-                                    Ok(addr) => {
-                                        let addr = i64::from_le_bytes(*addr) as usize;
-                                        self.ip = addr;
-                                    },
-                                    Err(e) => panic!(e)
-                                }
-                            } else {
-                                self.ip += 1;
-                            }
-                        },
-                        None => panic!("Error on JE. Stack is empty")
-                    }
-                },
-                Some(OP::JGE) => {
-                    match self.stack.last() {
-                        Some(tos) => {
-                            if *tos == 0 || *tos == 1 {
-                                self.ip += 1;
-                                let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
-                                // self.ip += 8;
-
-                                match i64_bytes {
-                                    Ok(addr) => {
-                                        let addr = i64::from_le_bytes(*addr) as usize;
-                                        self.ip = addr;
-                                    },
-                                    Err(e) => panic!(e)
-                                }
-                            } else {
-                                self.ip += 1;
-                            }
-                        },
-                        None => panic!("Error on JE. Stack is empty")
-                    }
-                },
-                Some(OP::NOT) => {
-                    match self.stack.last_mut() {
-                        Some(tos) => *tos = !*tos,
-                        None => panic!("Error on JE. Stack is empty")
-                    }
-                    self.ip += 1;
-                },
-                Some(OP::NEG) => {
-                    match self.stack.last_mut() {
-                        Some(tos) => *tos = -*tos,
-                        None => panic!("Error on JE. Stack is empty")
-                    }
-                    self.ip += 1;
-                },
-                Some(OP::SHL) => {
-                    self.ip += 1;
-                    let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
-                    self.ip += 8;
-
-                    match i64_bytes {
-                        Ok(delta) => {
-                            let delta = i64::from_le_bytes(*delta) as usize;
-                            match self.stack.last_mut() {
-                                Some(tos) => *tos = *tos << delta,
-                                None => panic!("Error on SHL. Stack is empty")
-                            }
-                        },
-                        Err(e) => panic!(e)
-                    }
-                },
-                Some(OP::SHR) => {
-                    self.ip += 1;
-                    let i64_bytes = slice_as_array_ref!(&self.bytecode[self.ip..self.ip+8], 8);
-                    self.ip += 8;
-
-                    match i64_bytes {
-                        Ok(delta) => {
-                            let delta = i64::from_le_bytes(*delta) as usize;
-                            match self.stack.last_mut() {
-                                Some(tos) => *tos = *tos >> delta,
-                                None => panic!("Error on SHL. Stack is empty")
-                            }
-                        },
-                        Err(e) => panic!(e)
-                    }
-                },
-                Some(OP::INC) => {
-                    match self.stack.last_mut() {
-                        Some(tos) => *tos += 1,
-                        None => panic!("Error on INC. Stack is empty")
-                    }
-                    self.ip += 1;
-                },
-                Some(OP::DEC) => {
-                    match self.stack.last_mut() {
-                        Some(tos) => *tos -= 1,
-                        None => panic!("Error on DEC. Stack is empty")
-                    }
-                    self.ip += 1;
-                },
-                Some(OP::AND) => {
-                    let tos = self.stack.pop();
-
-                    match tos {
-                        Some(tos) => {
-                            let tos1 = self.stack.pop();
-                            match tos1 {
-                                Some(tos1) => self.stack.push(tos & tos1),
-                                None => panic!("Error on AND. Stack is empty")
-                            }
-                        },
-                        None => panic!("Error on AND. Stack is empty")
-                    }
-
-                    self.ip += 1;
-                },
-                Some(OP::OR) => {
-                    let tos = self.stack.pop();
-
-                    match tos {
-                        Some(tos) => {
-                            let tos1 = self.stack.pop();
-                            match tos1 {
-                                Some(tos1) => self.stack.push(tos | tos1),
-                                None => panic!("Error on OR. Stack is empty")
-                            }
-                        },
-                        None => panic!("Error on OR. Stack is empty")
-                    }
-
-                    self.ip += 1;
-                },
-                Some(OP::XOR) => {
-                    let tos = self.stack.pop();
-
-                    match tos {
-                        Some(tos) => {
-                            let tos1 = self.stack.pop();
-                            match tos1 {
-                                Some(tos1) => self.stack.push(tos ^ tos1),
-                                None => panic!("Error on XOR. Stack is empty")
-                            }
-                        },
-                        None => panic!("Error on XOR. Stack is empty")
-                    }
-
-                    self.ip += 1;
-                },
-                Some(OP::ADD) => {
-                    let tos = self.stack.pop();
-
-                    match tos {
-                        Some(tos) => {
-                            let tos1 = self.stack.pop();
-                            match tos1 {
-                                Some(tos1) => self.stack.push(tos + tos1),
-                                None => panic!("Error on ADD. Stack is empty")
-                            }
-                        },
-                        None => panic!("Error on ADD. Stack is empty")
-                    }
-
-                    self.ip += 1;
-                },
-                Some(OP::SUB) => {
-                    let tos = self.stack.pop();
-
-                    match tos {
-                        Some(tos) => {
-                            let tos1 = self.stack.pop();
-                            match tos1 {
-                                Some(tos1) => self.stack.push(tos1 - tos),
-                                None => panic!("Error on ADD. Stack is empty")
-                            }
-                        },
-                        None => panic!("Error on ADD. Stack is empty")
-                    }
-
-                    self.ip += 1;
-                },
-                Some(OP::MUL) => {
-                    let tos = self.stack.pop();
-
-                    match tos {
-                        Some(tos) => {
-                            let tos1 = self.stack.pop();
-                            match tos1 {
-                                Some(tos1) => self.stack.push(tos1 * tos),
-                                None => panic!("Error on ADD. Stack is empty")
-                            }
-                        },
-                        None => panic!("Error on ADD. Stack is empty")
-                    }
-
-                    self.ip += 1;
-                },
-                Some(OP::DIV) => {
-                    let tos = self.stack.pop();
-
-                    match tos {
-                        Some(tos) => {
-                            if tos == 0 {
-                                panic!("Error on DIV. Cannot divide by 0")
-                            }
-                            let tos1 = self.stack.pop();
-                            match tos1 {
-                                Some(tos1) => self.stack.push(tos1 / tos),
-                                None => panic!("Error on ADD. Stack is empty")
-                            }
-                        },
-                        None => panic!("Error on ADD. Stack is empty")
-                    }
-
-                    self.ip += 1;
-                },
-                Some(OP::MOD) => {
-                    let tos = self.stack.pop();
-
-                    match tos {
-                        Some(tos) => {
-                            if tos == 0 {
-                                panic!("Error on DIV. Cannot divide by 0")
-                            }
-                            let tos1 = self.stack.pop();
-                            match tos1 {
-                                Some(tos1) => self.stack.push(tos1 % tos),
-                                None => panic!("Error on ADD. Stack is empty")
-                            }
-                        },
-                        None => panic!("Error on ADD. Stack is empty")
-                    }
-
-                    self.ip += 1;
-                },
+                } ),
                 Some(OP::PRNT) => {
                     let value = self.stack.pop();
                     match value {
